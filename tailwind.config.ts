@@ -47,10 +47,27 @@ const config: Config = {
         "gradient-brand": "linear-gradient(135deg, #00ffaa, #0ea5e9, #7c3aed)",
       },
       animation: {
-        "fade-in": "fade-in 0.4s ease forwards",
-        "slide-up": "slide-up 0.5s ease forwards",
+        "fade-in": "fadeIn 0.4s ease forwards",
+        "slide-up": "slideUp 0.5s ease forwards",
         shimmer: "shimmer 1.5s infinite",
-        "glow-pulse": "glow-pulse 2s ease-in-out infinite",
+        "glow-pulse": "glowPulse 2s ease-in-out infinite",
+      },
+      keyframes: {
+        fadeIn: {
+          "0%": { opacity: "0" },
+          "100%": { opacity: "1" },
+        },
+        slideUp: {
+          "0%": { opacity: "0", transform: "translateY(20px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+        shimmer: {
+          "100%": { transform: "translateX(100%)" },
+        },
+        glowPulse: {
+          "0%, 100%": { opacity: "0.5", transform: "scale(1)" },
+          "50%": { opacity: "1", transform: "scale(1.05)" },
+        },
       },
     },
   },

@@ -1,249 +1,117 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import {
-  saveToken,
-  removeToken,
-  getToken,
-  validateToken,
-  type TokenValidationResult,
-} from "@/lib/token";
-import { CheckCircle, Loader2, AlertTriangle, Key, X, ChevronDown, ChevronUp } from "lucide-react";
+import { useState } from "react";
+import { saveToken, removeToken, hasToken } from "@/lib/token";
+import { Key, ShieldCheck, AlertTriangle, Loader2 } from "lucide-react";
 
-type Props = {
-  onTokenChange?: (token: string | null) => void;
-  compact?: boolean;
-};
-
-type UIState = "idle" | "input" | "validating" | "valid" | "error";
-
-export function TokenManager({ onTokenChange, compact = false }: Props) {
-  const [uiState, setUiState] = useState<UIState>("idle");
+export function TokenManager({ onSuccess }: { onSuccess?: () => void }) {
   const [tokenInput, setTokenInput] = useState("");
-  const [validationResult, setValidationResult] = useState<TokenValidationResult | null>(null);
-  const [errorMessage, setErrorMessage] = useState("");
-  const [showInstructions, setShowInstructions] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
 
-  // On mount, check for an existing token
-  useEffect(() => {
-    const existing = getToken();
-    if (existing) {
-      setUiState("validating");
-      validateToken(existing).then((result) => {
-        if (result.valid) {
-          setValidationResult(result);
-          setUiState("valid");
-        } else {
-          removeToken();
-          setUiState("input");
-        }
-      });
-    } else {
-      setUiState("input");
-    }
-  }, []);
+  const [hasCurrentToken, setHasCurrentToken] = useState(hasToken());
 
-  async function handleSubmit() {
-    const trimmed = tokenInput.trim();
-    if (!trimmed) return;
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault();
+    if (!tokenInput.trim()) return;
 
-    setUiState("validating");
-    setErrorMessage("");
+    setLoading(true);
+    setError("");
+    setSuccess(false);
 
     try {
-      saveToken(trimmed);
+      await saveToken(tokenInput.trim());
+      setSuccess(true);
+      setHasCurrentToken(true);
+      setTokenInput("");
+      if (onSuccess) {
+        setTimeout(() => onSuccess(), 1000);
+      }
     } catch (err: unknown) {
-      setErrorMessage(err instanceof Error ? err.message : "Invalid token");
-      setUiState("error");
-      return;
-    }
-
-    const result = await validateToken(trimmed);
-    if (result.valid) {
-      setValidationResult(result);
-      setUiState("valid");
-      onTokenChange?.(trimmed);
-    } else {
-      removeToken();
-      setErrorMessage(result.error ?? "Token validation failed");
-      setUiState("error");
+      setError(err instanceof Error ? err.message : "Invalid token");
+    } finally {
+      setLoading(false);
     }
   }
 
-  function handleRemove() {
+  function handleClear() {
     removeToken();
-    setValidationResult(null);
+    setHasCurrentToken(false);
+    setSuccess(false);
     setTokenInput("");
-    setUiState("input");
-    onTokenChange?.(null);
   }
 
-  // ── Valid ─────────────────────────────────────────────────────────────────
-  if (uiState === "valid" && validationResult) {
-    return (
-      <div
-        className="flex items-center justify-between p-3 rounded-xl"
-        style={{
-          background: "rgba(16,185,129,0.08)",
-          border: "1px solid rgba(16,185,129,0.25)",
-        }}
-      >
-        <div className="flex items-center gap-3">
-          {validationResult.avatarUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={validationResult.avatarUrl}
-              alt={validationResult.login ?? ""}
-              className="w-8 h-8 rounded-full"
-            />
-          ) : (
-            <div
-              className="w-8 h-8 rounded-full flex items-center justify-center"
-              style={{ background: "rgba(16,185,129,0.15)" }}
-            >
-              <Key size={14} style={{ color: "#10b981" }} />
-            </div>
-          )}
-          <div>
-            <p className="text-sm font-semibold" style={{ color: "#10b981" }}>
-              @{validationResult.login}
-            </p>
-            <p className="text-xs" style={{ color: "#6ee7b7" }}>
-              ✓ Token connected · {validationResult.rateLimit?.toLocaleString()} req/hr
-            </p>
-          </div>
-        </div>
-        <button
-          onClick={handleRemove}
-          className="flex items-center gap-1 text-xs transition-colors"
-          style={{ color: "var(--text-muted)" }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = "#ef4444")}
-          onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
-        >
-          <X size={13} /> Remove
-        </button>
-      </div>
-    );
-  }
-
-  // ── Validating ────────────────────────────────────────────────────────────
-  if (uiState === "validating") {
-    return (
-      <div
-        className="flex items-center gap-3 p-3 rounded-xl"
-        style={{ background: "var(--bg-elevated)", border: "1px solid var(--border)" }}
-      >
-        <Loader2 size={16} className="animate-spin" style={{ color: "#0ea5e9" }} />
-        <span className="text-sm" style={{ color: "var(--text-secondary)" }}>
-          Validating token…
-        </span>
-      </div>
-    );
-  }
-
-  // ── Input / Error ─────────────────────────────────────────────────────────
   return (
-    <div className="space-y-3">
-      {!compact && (
-        <div>
-          <h3 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-            Connect GitHub Token
-          </h3>
-          <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
-            Add a fine-grained PAT to analyze private repos and unlock
-            5,000 requests/hour instead of 60.
-          </p>
-        </div>
-      )}
-
-      <div className="flex gap-2">
-        <input
-          id="pat-token-input"
-          type="password"
-          value={tokenInput}
-          onChange={(e) => setTokenInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
-          placeholder="github_pat_xxxxxxxxxxxx"
-          className="flex-1 px-3 py-2 text-sm rounded-lg outline-none transition-all"
-          style={{
-            background: "var(--bg-elevated)",
-            border: `1px solid ${uiState === "error" ? "rgba(239,68,68,0.5)" : "var(--border)"}`,
-            color: "var(--text-primary)",
-          }}
-          onFocus={(e) => (e.currentTarget.style.borderColor = "#0ea5e9")}
-          onBlur={(e) =>
-            (e.currentTarget.style.borderColor =
-              uiState === "error" ? "rgba(239,68,68,0.5)" : "var(--border)")
-          }
-        />
-        <button
-          id="pat-connect-btn"
-          onClick={handleSubmit}
-          disabled={!tokenInput.trim()}
-          className="px-4 py-2 text-sm font-medium rounded-lg transition-all"
-          style={{
-            background: tokenInput.trim() ? "#0ea5e9" : "var(--bg-elevated)",
-            color: tokenInput.trim() ? "#fff" : "var(--text-muted)",
-            border: "1px solid transparent",
-          }}
-        >
-          Connect
-        </button>
+    <div className="p-4 space-y-4">
+      <div className="flex items-center gap-2 mb-2">
+        <Key size={16} className="text-cyan-400" />
+        <h3 className="text-sm font-bold text-white">GitHub PAT Setup</h3>
       </div>
 
-      {uiState === "error" && (
-        <p className="flex items-center gap-1.5 text-xs" style={{ color: "#ef4444" }}>
-          <AlertTriangle size={12} /> {errorMessage}
-        </p>
-      )}
-
-      <p className="flex items-center gap-1.5 text-xs" style={{ color: "var(--text-muted)" }}>
-        <CheckCircle size={11} style={{ color: "#10b981" }} />
-        Stored only in your browser — never sent to our servers.
+      <p className="text-xs text-slate-400 leading-relaxed">
+        Adding a Fine-Grained Personal Access Token unlocks a <strong className="text-emerald-400">5,000 req/hr rate limit</strong> and allows you to analyze your private repositories securely.
       </p>
 
-      <button
-        onClick={() => setShowInstructions((v) => !v)}
-        className="flex items-center gap-1 text-xs transition-colors"
-        style={{ color: "#0ea5e9" }}
-      >
-        {showInstructions ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-        {showInstructions ? "Hide" : "How to generate a token"}
-      </button>
-
-      {showInstructions && (
-        <div
-          className="p-3 rounded-xl text-xs space-y-2"
-          style={{ background: "var(--bg-primary)", border: "1px solid var(--border)" }}
-        >
-          <p className="font-semibold" style={{ color: "var(--text-primary)" }}>
-            Generate a Fine-Grained PAT:
-          </p>
-          <ol className="list-decimal list-inside space-y-1.5" style={{ color: "var(--text-secondary)" }}>
-            <li>
-              Go to{" "}
-              <a
-                href="https://github.com/settings/tokens?type=beta"
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ color: "#0ea5e9" }}
-              >
-                github.com/settings/tokens
-              </a>
-            </li>
-            <li>Click &ldquo;Generate new token&rdquo; → &ldquo;Fine-grained token&rdquo;</li>
-            <li>Set expiration (90 days recommended)</li>
-            <li>
-              Under &ldquo;Repository permissions&rdquo; set:
-              <ul className="ml-4 mt-1 space-y-0.5">
-                <li>• Contents → Read-only</li>
-                <li>• Metadata → Read-only (auto-selected)</li>
-              </ul>
-            </li>
-            <li>Click &ldquo;Generate token&rdquo; and paste it above</li>
-          </ol>
+      {hasCurrentToken ? (
+        <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <ShieldCheck size={16} />
+            <span className="font-medium">Valid token connected</span>
+          </div>
+          <button
+            onClick={handleClear}
+            className="text-[10px] uppercase font-bold tracking-wider hover:text-emerald-300 underline underline-offset-2"
+          >
+            Remove
+          </button>
         </div>
+      ) : (
+        <form onSubmit={handleSave} className="space-y-3">
+          <input
+            type="password"
+            value={tokenInput}
+            onChange={(e) => setTokenInput(e.target.value)}
+            placeholder="github_pat_11..."
+            className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition-colors"
+          />
+
+          <button
+            type="submit"
+            disabled={loading || !tokenInput.trim()}
+            className="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold transition-all"
+            style={{
+              background: loading || !tokenInput.trim() ? "rgba(255,255,255,0.05)" : "linear-gradient(135deg, #0ea5e9, #3b82f6)",
+              color: loading || !tokenInput.trim() ? "#64748b" : "white",
+            }}
+          >
+            {loading ? <Loader2 size={14} className="animate-spin" /> : "Save & Verify Token"}
+          </button>
+
+          {error && (
+            <p className="text-xs text-red-400 flex items-center gap-1.5 mt-2 bg-red-500/10 p-2 rounded-lg border border-red-500/20">
+              <AlertTriangle size={12} /> {error}
+            </p>
+          )}
+
+          {success && (
+            <p className="text-xs text-emerald-400 flex items-center gap-1.5 mt-2 bg-emerald-500/10 p-2 rounded-lg border border-emerald-500/20">
+              <ShieldCheck size={12} /> Token successfully verified!
+            </p>
+          )}
+        </form>
       )}
+
+      <div className="pt-3 border-t border-slate-800">
+        <a
+          href="https://github.com/settings/tokens?type=beta"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xs text-cyan-500 hover:text-cyan-400 font-medium transition-colors"
+        >
+          Generate a new token →
+        </a>
+      </div>
     </div>
   );
 }

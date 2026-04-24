@@ -251,20 +251,21 @@ export function TimelineScrubber({ commits, chapters, selectedIndex, onSelect }:
       {/* Tooltip */}
       {tooltip.visible && tooltip.commit && (
         <div
-          className="absolute pointer-events-none z-50 glass rounded-xl p-3 text-xs max-w-xs"
+          className="absolute pointer-events-none z-50 rounded-xl p-3 text-xs max-w-xs bg-slate-900/90 backdrop-blur-xl shadow-2xl border"
           style={{
             left: Math.min(tooltip.x, width - 220),
             top: tooltip.y - 90,
             transform: "translateX(-50%)",
-            borderColor: CHANGE_TYPE_COLORS[tooltip.commit.changeType] ?? "var(--border)",
+            borderColor: CHANGE_TYPE_COLORS[tooltip.commit.changeType] ?? "rgba(255,255,255,0.1)",
           }}
         >
-          <p className="font-semibold mb-1" style={{ color: "var(--text-primary)" }}>
-            {tooltip.commit.cleanMessage.slice(0, 60)}
+          <p className="font-bold mb-1 text-white truncate">
+            {tooltip.commit.cleanMessage}
           </p>
-          <p style={{ color: "var(--text-muted)" }}>
+          <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-medium">
+            <span className="w-1.5 h-1.5 rounded-full" style={{ background: CHANGE_TYPE_COLORS[tooltip.commit.changeType] }} />
             {tooltip.commit.authorName} · {formatDate(tooltip.commit.timestamp)}
-          </p>
+          </div>
         </div>
       )}
     </div>

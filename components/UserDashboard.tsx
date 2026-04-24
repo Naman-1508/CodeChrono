@@ -3,10 +3,8 @@
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useAuth } from "@/lib/auth";
-import { formatRelativeTime } from "@/lib/utils";
 import Link from "next/link";
-import { GitBranch, Clock, CheckCircle, Loader2 } from "lucide-react";
-import { SignInButton } from "@clerk/nextjs";
+import { Clock, GitBranch } from "lucide-react";
 
 export function UserDashboard() {
   const { isSignedIn, clerkUser } = useAuth();
@@ -16,124 +14,86 @@ export function UserDashboard() {
     isSignedIn && clerkUser ? { userId: clerkUser.id } : "skip"
   );
 
-  // Not signed in — show upsell
   if (!isSignedIn) {
     return (
-      <div
-        className="p-6 rounded-2xl text-center"
-        style={{
-          background: "var(--bg-card)",
-          border: "1px solid var(--border)",
-        }}
-      >
-        <Clock size={32} className="mx-auto mb-3 opacity-40" style={{ color: "var(--accent-green)" }} />
-        <p className="text-sm font-medium mb-1" style={{ color: "var(--text-primary)" }}>
-          Save your analysis history
-        </p>
-        <p className="text-xs mb-4" style={{ color: "var(--text-muted)" }}>
+      <div className="p-8 rounded-3xl text-center border border-white/5 bg-slate-900/40 backdrop-blur-sm shadow-xl">
+        <h2 className="text-xl font-bold mb-3 text-white">Save your analysis history</h2>
+        <p className="text-sm mb-6 text-slate-400">
           Sign in to revisit analyzed repos anytime.
         </p>
         <Link
           href="/sign-in"
-          className="inline-block text-sm px-4 py-2 rounded-lg transition-all"
+          className="inline-flex items-center gap-2 text-sm font-semibold px-6 py-3 rounded-xl transition-all shadow-lg hover:shadow-cyan-500/20"
           style={{
-            background: "var(--bg-elevated)",
-            border: "1px solid var(--border)",
-            color: "var(--text-secondary)",
+            background: "linear-gradient(135deg, #0ea5e9, #3b82f6)",
+            color: "white",
           }}
         >
-          Sign in
+          Sign In Now
         </Link>
       </div>
     );
   }
 
-  // Loading
-  if (previousRepos === undefined) {
-    return (
-      <div className="flex items-center gap-2 justify-center py-6" style={{ color: "var(--text-muted)" }}>
-        <Loader2 size={16} className="animate-spin" />
-        <span className="text-sm">Loading your repos…</span>
-      </div>
-    );
-  }
-
-  // Empty history
-  if (previousRepos.length === 0) return null;
-
   return (
-    <div className="space-y-3">
-      <h2
-        className="text-xs font-semibold uppercase tracking-wider"
-        style={{ color: "var(--text-muted)" }}
-      >
-        Your Recent Repos
-      </h2>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {previousRepos.map((repo) => (
-          <Link
-            key={repo._id}
-            href={`/repo/${repo.owner}/${repo.name}/timeline`}
-            className="block group"
-          >
-            <div
-              className="p-4 rounded-xl transition-all"
-              style={{
-                background: "var(--bg-card)",
-                border: "1px solid var(--border)",
-              }}
-              onMouseEnter={(e) =>
-                (e.currentTarget.style.borderColor = "rgba(0,255,170,0.3)")
-              }
-              onMouseLeave={(e) =>
-                (e.currentTarget.style.borderColor = "var(--border)")
-              }
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <GitBranch size={13} style={{ color: "var(--accent-green)", flexShrink: 0 }} />
-                    <p
-                      className="text-sm font-medium truncate transition-colors"
-                      style={{ color: "var(--text-primary)" }}
-                    >
-                      {repo.fullName}
-                    </p>
-                  </div>
-                  <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                    {repo.totalCommits.toLocaleString()} commits ·{" "}
-                    {formatRelativeTime(repo.lastAnalyzedAt ?? repo.createdAt)}
-                  </p>
-                </div>
-
-                <span
-                  className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full flex-shrink-0"
-                  style={{
-                    background:
-                      repo.status === "ready"
-                        ? "rgba(16,185,129,0.1)"
-                        : "rgba(245,158,11,0.1)",
-                    color:
-                      repo.status === "ready" ? "#10b981" : "#f59e0b",
-                    border: `1px solid ${repo.status === "ready" ? "rgba(16,185,129,0.25)" : "rgba(245,158,11,0.25)"}`,
-                  }}
-                >
-                  {repo.status === "ready" ? (
-                    <>
-                      <CheckCircle size={10} /> Ready
-                    </>
-                  ) : (
-                    <>
-                      <Loader2 size={10} className="animate-spin" /> Processing
-                    </>
-                  )}
-                </span>
-              </div>
-            </div>
-          </Link>
-        ))}
+    <div className="space-y-4">
+      <div className="flex items-center justify-between px-2">
+        <h2 className="text-xl font-bold text-white flex items-center gap-2">
+          <Clock size={18} className="text-cyan-400" /> Recent Analyses
+        </h2>
       </div>
+
+      {!previousRepos ? (
+        <div className="p-8 rounded-3xl text-center border border-white/5 bg-slate-900/40 backdrop-blur-sm animate-pulse">
+          <p className="text-slate-500 text-sm">Loading history...</p>
+        </div>
+      ) : previousRepos.length === 0 ? (
+        <div className="p-10 rounded-3xl text-center border border-white/5 bg-slate-900/40 backdrop-blur-sm shadow-inner">
+          <p className="text-slate-400 text-sm">No repositories analyzed yet.</p>
+          <p className="text-slate-500 text-xs mt-2">Enter a GitHub URL above to get started.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {previousRepos.map((r) => (
+            <Link
+              key={r._id}
+              href={`/repo/${r.fullName}`}
+              className="block p-5 rounded-2xl border border-white/5 bg-slate-900/60 backdrop-blur-md hover:bg-slate-800/80 hover:border-cyan-500/30 transition-all shadow-lg group relative overflow-hidden"
+            >
+              <div className="absolute top-0 left-0 w-1 h-full bg-cyan-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="flex items-start justify-between">
+                <div>
+                  <h3 className="font-bold text-white mb-1 truncate max-w-[200px]" title={r.fullName}>
+                    {r.fullName}
+                  </h3>
+                  <div className="flex items-center gap-3 text-xs text-slate-400">
+                    <span className="flex items-center gap-1">
+                      <GitBranch size={12} /> {r.totalCommits?.toLocaleString() ?? 0} commits
+                    </span>
+                  </div>
+                </div>
+                {r.status !== "error" && r.status !== "ready" ? (
+                  <div className="flex items-center gap-1.5 px-2 py-1 rounded border bg-yellow-500/10 border-yellow-500/20 text-yellow-500 text-[10px] font-bold uppercase tracking-wider">
+                    <span className="w-1.5 h-1.5 rounded-full bg-yellow-500 animate-pulse" />
+                    Processing
+                  </div>
+                ) : r.status === "error" ? (
+                  <div className="px-2 py-1 rounded border bg-red-500/10 border-red-500/20 text-red-500 text-[10px] font-bold uppercase tracking-wider">
+                    Failed
+                  </div>
+                ) : (
+                  <div className="px-2 py-1 rounded border bg-emerald-500/10 border-emerald-500/20 text-emerald-400 text-[10px] font-bold uppercase tracking-wider">
+                    Ready
+                  </div>
+                )}
+              </div>
+              <div className="mt-3 text-[10px] text-slate-500 font-medium">
+                Last viewed: {new Date(r.lastAnalyzedAt ?? r.createdAt).toLocaleDateString()}
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

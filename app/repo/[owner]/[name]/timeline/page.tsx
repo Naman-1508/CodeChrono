@@ -11,6 +11,7 @@ import { FilterBar } from "@/components/FilterBar";
 import { HeatmapOverlay } from "@/components/HeatmapOverlay";
 import { Clock, Loader2, Flame } from "lucide-react";
 import Link from "next/link";
+import { motion } from "framer-motion";
 
 type Filters = {
   query: string;
@@ -76,34 +77,37 @@ export default function TimelinePage() {
 
   if (!repo || !allCommits) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--bg-primary)" }}>
-        <Loader2 size={32} className="animate-spin" style={{ color: "var(--accent-green)" }} />
+      <div className="min-h-screen flex items-center justify-center relative overflow-hidden" style={{ background: "#050810" }}>
+        <Loader2 size={48} className="animate-spin text-cyan-500" />
       </div>
     );
   }
 
   return (
     <main
-      className="h-screen flex flex-col overflow-hidden"
-      style={{ background: "var(--bg-primary)" }}
+      className="h-screen flex flex-col overflow-hidden relative"
+      style={{ background: "#050810" }}
     >
+      <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay pointer-events-none" />
+
       {/* Top bar */}
       <header
-        className="flex items-center gap-4 px-6 py-3 flex-shrink-0"
-        style={{ borderBottom: "1px solid var(--border)", background: "var(--bg-secondary)" }}
+        className="relative z-20 flex items-center gap-4 px-6 py-3 flex-shrink-0 bg-slate-900/80 backdrop-blur-xl border-b border-white/5 shadow-md"
       >
-        <Link href="/" className="flex items-center gap-2 flex-shrink-0">
-          <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "linear-gradient(135deg, #00ffaa, #0ea5e9)" }}>
-            <Clock size={13} style={{ color: "#0a0a0f" }} />
+        <Link href="/" className="flex items-center gap-2 flex-shrink-0 group">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center shadow-lg transition-transform group-hover:scale-105" style={{ background: "linear-gradient(135deg, #00ffaa, #0ea5e9)" }}>
+            <Clock size={16} style={{ color: "#0a0a0f" }} />
           </div>
-          <span className="font-bold text-sm hidden md:block" style={{ color: "var(--text-primary)" }}>
-            Time Rewind
+          <span className="font-black text-white hidden md:block tracking-tight drop-shadow-md">
+            CodeChrono
           </span>
         </Link>
 
-        <span className="text-sm mono" style={{ color: "var(--text-muted)" }}>{fullName}</span>
+        <span className="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-slate-300 font-mono text-xs font-semibold shadow-inner">
+          {fullName}
+        </span>
 
-        <div className="flex-1">
+        <div className="flex-1 ml-4">
           <FilterBar
             filters={filters}
             onFiltersChange={setFilters}
@@ -115,21 +119,20 @@ export default function TimelinePage() {
         <button
           id="heatmap-toggle-btn"
           onClick={() => setShowHeatmap((v) => !v)}
-          className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all flex-shrink-0"
+          className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all flex-shrink-0 shadow-lg"
           style={{
-            background: showHeatmap ? "rgba(255,107,53,0.15)" : "var(--bg-elevated)",
-            border: `1px solid ${showHeatmap ? "rgba(255,107,53,0.4)" : "var(--border)"}`,
-            color: showHeatmap ? "#ff6b35" : "var(--text-secondary)",
+            background: showHeatmap ? "linear-gradient(135deg, rgba(255,107,53,0.2), rgba(255,107,53,0.05))" : "rgba(255,255,255,0.05)",
+            border: `1px solid ${showHeatmap ? "rgba(255,107,53,0.5)" : "rgba(255,255,255,0.1)"}`,
+            color: showHeatmap ? "#ff9871" : "#94a3b8",
           }}
         >
-          <Flame size={14} /> Hotspots
+          <Flame size={14} className={showHeatmap ? "animate-pulse" : ""} /> Hotspots
         </button>
       </header>
 
       {/* Timeline scrubber */}
       <div
-        className="flex-shrink-0 px-6 pt-3 pb-2"
-        style={{ borderBottom: "1px solid var(--border)", background: "var(--bg-secondary)" }}
+        className="relative z-10 flex-shrink-0 px-6 pt-3 pb-2 bg-slate-900/40 backdrop-blur-md border-b border-white/5"
       >
         <TimelineScrubber
           commits={(commits ?? []) as any[]}
@@ -140,13 +143,17 @@ export default function TimelinePage() {
       </div>
 
       {/* Main content area */}
-      <div className="flex flex-1 overflow-hidden gap-4 p-4">
+      <div className="relative z-10 flex flex-1 overflow-hidden gap-6 p-6">
         {/* Left panel */}
-        <div className="flex flex-col gap-4 overflow-y-auto" style={{ width: showHeatmap ? 320 : 360, flexShrink: 0 }}>
+        <motion.div 
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="flex flex-col gap-4 overflow-y-auto" style={{ width: showHeatmap ? 340 : 380, flexShrink: 0 }}
+        >
           {selectedCommit ? (
             <CommitCard commit={selectedCommit as any} totalCommits={(commits ?? []).length} />
           ) : (
-            <div className="glass rounded-2xl p-6 text-center" style={{ color: "var(--text-muted)" }}>
+            <div className="rounded-3xl p-8 text-center bg-slate-900/50 backdrop-blur-xl border border-white/5 text-slate-500 font-medium">
               No commit selected
             </div>
           )}
@@ -157,10 +164,14 @@ export default function TimelinePage() {
               onFileSelect={(path) => setSelectedFile(path)}
             />
           )}
-        </div>
+        </motion.div>
 
         {/* Right panel — Code viewer */}
-        <div className="flex-1 overflow-hidden">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.98 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="flex-1 overflow-hidden rounded-3xl border border-white/5 shadow-2xl bg-[#0a0a0f] relative"
+        >
           {selectedCommit ? (
             <CodeViewer
               owner={owner}
@@ -174,14 +185,11 @@ export default function TimelinePage() {
               deletedFiles={selectedCommit.deletedFiles}
             />
           ) : (
-            <div
-              className="h-full flex items-center justify-center rounded-2xl"
-              style={{ border: "1px solid var(--border)", background: "var(--bg-card)", color: "var(--text-muted)" }}
-            >
+            <div className="h-full flex items-center justify-center text-slate-500 font-medium bg-slate-900/30">
               Select a commit on the timeline above
             </div>
           )}
-        </div>
+        </motion.div>
       </div>
     </main>
   );

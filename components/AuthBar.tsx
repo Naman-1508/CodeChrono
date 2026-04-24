@@ -1,180 +1,120 @@
 "use client";
 
-import { SignInButton, SignOutButton } from "@clerk/nextjs";
+import { SignOutButton } from "@clerk/nextjs";
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth";
 import { TokenManager } from "./TokenManager";
 import { hasToken } from "@/lib/token";
-import { Zap, Key, LogOut, ChevronDown } from "lucide-react";
+import { Zap, Key, ChevronDown, User } from "lucide-react";
 
 export function AuthBar() {
-  const { isSignedIn, clerkUser, effectiveRateLimit, isLoaded } = useAuth();
+  const { isSignedIn, clerkUser, effectiveRateLimit } = useAuth();
+  const [isTokenPanelOpen, setIsTokenPanelOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const tokenPresent = hasToken();
 
-  const [showTokenPanel, setShowTokenPanel] = useState(false);
-  const [tokenPresent, setTokenPresent] = useState(false);
-  const panelRef = useRef<HTMLDivElement>(null);
+  const rateLimitColor = effectiveRateLimit === 5000 ? "green" : "yellow";
 
-  // Read PAT presence on mount (avoid SSR mismatch)
+  // Close dropdown on click outside
   useEffect(() => {
-    setTokenPresent(hasToken());
-  }, []);
-
-  // Close panel on outside click
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
-        setShowTokenPanel(false);
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsTokenPanelOpen(false);
       }
     }
-    if (showTokenPanel) document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [showTokenPanel]);
-
-  if (!isLoaded) {
-    return (
-      <div
-        className="w-32 h-8 rounded-full animate-pulse"
-        style={{ background: "var(--bg-elevated)" }}
-      />
-    );
-  }
-
-  const rateColor = effectiveRateLimit === 5000 ? "#10b981" : "#f59e0b";
-  const rateBackground =
-    effectiveRateLimit === 5000
-      ? "rgba(16,185,129,0.1)"
-      : "rgba(245,158,11,0.1)";
-  const rateBorder =
-    effectiveRateLimit === 5000
-      ? "rgba(16,185,129,0.25)"
-      : "rgba(245,158,11,0.25)";
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   return (
-    <div className="flex items-center gap-3 relative" ref={panelRef}>
+    <div className="flex items-center gap-4">
       {/* Rate limit badge */}
-      <button
-        id="rate-limit-badge"
-        onClick={() => setShowTokenPanel((v) => !v)}
-        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium transition-all"
-        style={{ background: rateBackground, color: rateColor, border: `1px solid ${rateBorder}` }}
+      <div
+        className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold backdrop-blur-md shadow-sm border transition-colors"
+        style={{
+          background: rateLimitColor === "green" ? "rgba(16, 185, 129, 0.1)" : "rgba(234, 179, 8, 0.1)",
+          borderColor: rateLimitColor === "green" ? "rgba(16, 185, 129, 0.2)" : "rgba(234, 179, 8, 0.2)",
+          color: rateLimitColor === "green" ? "#34d399" : "#fbbf24",
+        }}
       >
-        <Zap size={11} fill={rateColor} />
+        <Zap size={14} className={rateLimitColor === "green" ? "text-emerald-400" : "text-amber-400"} />
         {effectiveRateLimit.toLocaleString()} req/hr
-      </button>
+      </div>
 
-      {/* Signed-in state */}
       {isSignedIn && clerkUser ? (
-        <div className="flex items-center gap-2">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={clerkUser.avatarUrl}
-            alt={clerkUser.name}
-            className="w-7 h-7 rounded-full"
-          />
-          <span
-            className="text-sm hidden sm:block"
-            style={{ color: "var(--text-secondary)" }}
-          >
-            {clerkUser.username || clerkUser.name}
-          </span>
-
-          {/* PAT addon toggle */}
+        <div className="flex items-center gap-3 relative" ref={dropdownRef}>
           <button
-            id="pat-toggle-btn"
-            onClick={() => setShowTokenPanel((v) => !v)}
-            className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg border transition-all"
-            style={{
-              borderColor: tokenPresent ? "rgba(16,185,129,0.35)" : "var(--border)",
-              color: tokenPresent ? "#10b981" : "var(--text-muted)",
-              background: tokenPresent ? "rgba(16,185,129,0.08)" : "transparent",
-            }}
+            onClick={() => setIsTokenPanelOpen(!isTokenPanelOpen)}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800/50 hover:bg-slate-700/50 border border-slate-700 hover:border-slate-600 transition-all text-sm font-medium text-white shadow-sm"
           >
-            <Key size={11} />
-            {tokenPresent ? "PAT" : "+ PAT"}
-            <ChevronDown size={11} />
+            <div className="relative">
+              <img
+                src={clerkUser.avatarUrl}
+                alt="Avatar"
+                className="w-6 h-6 rounded-full border border-slate-600 shadow-sm"
+              />
+              <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-slate-900" />
+            </div>
+            <span className="hidden sm:inline-block max-w-[100px] truncate">{clerkUser.name}</span>
+            <ChevronDown size={14} className={`text-slate-400 transition-transform ${isTokenPanelOpen ? "rotate-180" : ""}`} />
           </button>
 
-          <SignOutButton>
-            <button
-              className="flex items-center gap-1 text-xs transition-colors"
-              style={{ color: "var(--text-muted)" }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = "#ef4444")}
-              onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
-            >
-              <LogOut size={12} /> Sign out
-            </button>
-          </SignOutButton>
+          {isTokenPanelOpen && (
+            <div className="absolute top-full right-0 mt-3 w-80 z-50">
+              <div className="p-1 rounded-2xl bg-slate-900/95 backdrop-blur-xl border border-slate-700/50 shadow-2xl shadow-black/50">
+                <TokenManager onSuccess={() => setIsTokenPanelOpen(false)} />
+                <div className="p-2 border-t border-slate-800/50 mt-1">
+                  <SignOutButton>
+                    <button className="w-full text-left px-3 py-2 rounded-xl text-sm font-medium text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors flex items-center gap-2">
+                      Sign out
+                    </button>
+                  </SignOutButton>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       ) : (
-        /* Anonymous state */
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3 relative" ref={dropdownRef}>
           <button
-            id="anon-token-btn"
-            onClick={() => setShowTokenPanel((v) => !v)}
-            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-all"
+            onClick={() => setIsTokenPanelOpen(!isTokenPanelOpen)}
+            className="text-xs font-medium px-4 py-2 rounded-full transition-all border shadow-sm flex items-center gap-2"
             style={{
-              borderColor: tokenPresent ? "rgba(16,185,129,0.35)" : "var(--border)",
-              color: tokenPresent ? "#10b981" : "var(--text-secondary)",
-              background: tokenPresent ? "rgba(16,185,129,0.08)" : "var(--bg-elevated)",
+              background: tokenPresent ? "rgba(16, 185, 129, 0.1)" : "rgba(255, 255, 255, 0.05)",
+              color: tokenPresent ? "#34d399" : "#94a3b8",
+              borderColor: tokenPresent ? "rgba(16, 185, 129, 0.2)" : "rgba(255, 255, 255, 0.1)",
+            }}
+            onMouseEnter={(e) => {
+              if (!tokenPresent) e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
+            }}
+            onMouseLeave={(e) => {
+              if (!tokenPresent) e.currentTarget.style.background = "rgba(255, 255, 255, 0.05)";
             }}
           >
-            <Key size={11} />
-            {tokenPresent ? "Token connected" : "Add GitHub token"}
+            {tokenPresent ? <Key size={14} /> : null}
+            {tokenPresent ? "Token connected" : "Add PAT"}
           </button>
 
           <Link
             href="/sign-in"
-            id="signin-btn"
-            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg transition-all"
+            className="text-xs font-bold px-5 py-2 rounded-full transition-all shadow-md hover:shadow-cyan-500/20 flex items-center gap-2"
             style={{
-              background: "var(--bg-elevated)",
-              color: "var(--text-secondary)",
-              border: "1px solid var(--border)",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = "var(--bg-card)";
-              e.currentTarget.style.color = "var(--text-primary)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "var(--bg-elevated)";
-              e.currentTarget.style.color = "var(--text-secondary)";
+              background: "linear-gradient(135deg, #0ea5e9, #3b82f6)",
+              color: "white",
             }}
           >
-            Sign in
+            <User size={14} />
+            Sign In
           </Link>
-        </div>
-      )}
 
-      {/* Token panel dropdown */}
-      {showTokenPanel && (
-        <div
-          className="absolute top-10 right-0 z-50 w-80 p-4 rounded-2xl shadow-2xl"
-          style={{
-            background: "var(--bg-card)",
-            border: "1px solid var(--border)",
-            backdropFilter: "blur(16px)",
-          }}
-        >
-          {isSignedIn && (
-            <p
-              className="text-xs pb-3 mb-3"
-              style={{
-                color: "var(--text-muted)",
-                borderBottom: "1px solid var(--border)",
-              }}
-            >
-              You&apos;re signed in via GitHub OAuth (5,000 req/hr). Add a
-              fine-grained PAT for private repo access with minimal permissions —
-              PAT always takes priority.
-            </p>
+          {isTokenPanelOpen && (
+            <div className="absolute top-full right-0 mt-3 w-80 z-50">
+              <div className="p-1 rounded-2xl bg-slate-900/95 backdrop-blur-xl border border-slate-700/50 shadow-2xl shadow-black/50">
+                <TokenManager onSuccess={() => setIsTokenPanelOpen(false)} />
+              </div>
+            </div>
           )}
-          <TokenManager
-            onTokenChange={(token) => {
-              setTokenPresent(!!token);
-              setShowTokenPanel(false);
-            }}
-          />
         </div>
       )}
     </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useUser, useSession } from "@clerk/nextjs";
+import { useUser } from "@clerk/nextjs";
 import { useState, useEffect } from "react";
 import { getToken, getBestToken, hasToken } from "./token";
 
@@ -17,17 +17,15 @@ export type AuthState = {
   isSignedIn: boolean;
   /** Clerk user profile, null if not signed in */
   clerkUser: ClerkUser | null;
-  /** GitHub OAuth token obtained from the Clerk session (if signed in) */
-  clerkOAuthToken: string | null;
   /** True when a PAT is stored in localStorage */
   hasPAT: boolean;
   /** PAT value from localStorage */
   patToken: string | null;
-  /** Best available token: PAT > Clerk OAuth > null */
+  /** Best available token: PAT > null */
   bestToken: string | null;
-  /** 5000 if any token present, 60 otherwise */
+  /** 5000 if PAT present, 60 otherwise */
   effectiveRateLimit: number;
-  /** True when PAT or Clerk OAuth is available */
+  /** True when PAT is available */
   canAccessPrivateRepos: boolean;
   /** True if signed in OR has PAT */
   hasAnyAuth: boolean;
@@ -37,9 +35,7 @@ export type AuthState = {
 
 export function useAuth(): AuthState {
   const { isSignedIn, user, isLoaded: clerkLoaded } = useUser();
-  const { session } = useSession();
 
-  const [clerkOAuthToken, setClerkOAuthToken] = useState<string | null>(null);
   const [patToken, setPatToken] = useState<string | null>(null);
   const [isLocalLoaded, setIsLocalLoaded] = useState(false);
 
@@ -49,21 +45,9 @@ export function useAuth(): AuthState {
     setIsLocalLoaded(true);
   }, []);
 
-  // Obtain GitHub OAuth token from Clerk session
-  useEffect(() => {
-    if (!isSignedIn || !session) {
-      setClerkOAuthToken(null);
-      return;
-    }
-    session
-      .getToken({ template: "github-oauth" })
-      .then((t) => setClerkOAuthToken(t))
-      .catch(() => setClerkOAuthToken(null));
-  }, [isSignedIn, session]);
-
-  const bestToken = getBestToken(clerkOAuthToken);
+  const bestToken = getBestToken();
   const hasAnyAuth = !!(isSignedIn || patToken);
-  const canAccessPrivateRepos = hasAnyAuth;
+  const canAccessPrivateRepos = !!patToken;
   const effectiveRateLimit = bestToken ? 5000 : 60;
 
   return {
@@ -78,7 +62,6 @@ export function useAuth(): AuthState {
             username: user.username ?? "",
           }
         : null,
-    clerkOAuthToken,
     hasPAT: hasToken(),
     patToken,
     bestToken,

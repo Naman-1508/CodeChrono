@@ -96,9 +96,13 @@ export async function validateToken(
  *   2. GitHub OAuth token from Clerk session
  *   3. null (anonymous, 60 req/hr)
  */
-export function getBestToken(clerkOAuthToken?: string | null): string | null {
+export function getBestToken(): string | null {
+  if (typeof window === "undefined") return null;
+
+  // 1. Always prioritize user's locally entered PAT
   const pat = getToken();
   if (pat) return pat;
-  if (clerkOAuthToken) return clerkOAuthToken;
+
+  // 2. Otherwise return null (we no longer try to use Clerk's token directly here)
   return null;
 }
