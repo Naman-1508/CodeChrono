@@ -6,7 +6,7 @@
 
 import { action } from "./_generated/server";
 import { internal } from "./_generated/api";
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { validateRepo, fetchAllCommits, fetchCommitDiff } from "./github";
 
 const DIFF_BATCH_SIZE = 50;
@@ -23,7 +23,13 @@ export const ingestRepo = action({
     const [owner, name] = repoFullName.split("/");
 
     // 1. Validate repo with GitHub
-    const repoMeta = await validateRepo(owner, name, token);
+    let repoMeta;
+    try {
+      repoMeta = await validateRepo(owner, name, token);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      throw new ConvexError(`Failed to access repository ${repoFullName}. Ensure the repository exists and your PAT token has the correct permissions (Metadata: Read, Contents: Read). Original error: ${msg}`);
+    }
 
     // 2. Create/update repo record
     const repoId: string = await ctx.runMutation(internal.ingestionMutations.upsertRepo, {
